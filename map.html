@@ -4,20 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>AIDUX | Smart Map</title>
-    
-    <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
-    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
     <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
     <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
-    <script src="https://unpkg.com/three@0.147.0/build/three.min.js"></script>
-    <script src="https://unpkg.com/three@0.147.0/examples/js/loaders/GLTFLoader.js"></script>
-
     <style>
         :root { --main-green: #2e7d32; --neon-green: #a5ffb1; }
         body { margin: 0; overflow: hidden; background: #050505; font-family: 'Segoe UI', sans-serif; color: white; }
-
-        /* Адаптивная навигация (Челка) */
-        .nav { 
+        .nav {
             position: fixed; top: 0; width: 100%; height: 60px;
             z-index: 4000; background: rgba(0,0,0,0.85);
             display: flex; align-items: center; justify-content: space-around;
@@ -25,40 +17,43 @@
         }
         .nav a { color: white; text-decoration: none; font-size: 14px; font-weight: bold; text-transform: uppercase; }
         .nav a.active { color: var(--neon-green); border-bottom: 2px solid var(--neon-green); }
-
-        /* Панель управления */
-        #smart-panel { 
+        #smart-panel {
             position: fixed; top: 75px; left: 50%; transform: translateX(-50%);
-            z-index: 3000; width: 92%; max-width: 450px; 
+            z-index: 3000; width: 92%; max-width: 450px;
             padding: 15px; border-radius: 15px; background: rgba(0,0,0,0.8);
             border: 1px solid var(--main-green); box-sizing: border-box;
         }
-
         .search-row { display: flex; gap: 8px; margin-top: 10px; }
-        input { 
+        input {
             flex: 1; height: 45px; background: #111; border: 1px solid var(--main-green);
             color: white; border-radius: 8px; padding: 0 10px; font-size: 16px;
         }
-
-        .icon-btn { 
-            width: 45px; height: 45px; background: var(--main-green); border: none; 
-            border-radius: 8px; cursor: pointer; transition: 0.3s; display: flex; align-items: center; justify-content: center;
+        .icon-btn {
+            width: 45px; height: 45px; background: var(--main-green); border: none;
+            border-radius: 8px; cursor: pointer; transition: 0.3s; display: flex;
+            align-items: center; justify-content: center; font-size: 20px;
         }
         .recording { background: #ff5252 !important; box-shadow: 0 0 15px #ff5252; animation: pulse 1.5s infinite; }
-
-        /* Виджет ИИ-Помощника */
         #ai-assistant {
             position: fixed; bottom: 20px; right: 20px; z-index: 5000;
             width: 60px; height: 60px; background: var(--main-green);
             border-radius: 50%; display: flex; align-items: center; justify-content: center;
-            cursor: pointer; box-shadow: 0 0 20px rgba(46, 125, 50, 0.5);
+            cursor: pointer; box-shadow: 0 0 20px rgba(46, 125, 50, 0.5); font-size: 28px;
         }
-
-        #map-container { position: absolute; top: 0; width: 100%; height: 100%; z-index: 100; }
-
+        #map-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 100; }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
-
-        /* Сообщение о небезопасном протоколе */
+        .camera-modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: black; z-index: 6000; display: none; justify-content: center; align-items: center;
+        }
+        .camera-modal video {
+            width: 100%; height: 100%; object-fit: cover;
+        }
+        .close-camera {
+            position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.7);
+            color: white; border: none; font-size: 30px; cursor: pointer; border-radius: 50%;
+            width: 50px; height: 50px; z-index: 6100;
+        }
         .https-warning {
             position: fixed; bottom: 20px; left: 20px; z-index: 6000;
             background: rgba(255,82,82,0.9); color: white; padding: 8px 15px;
@@ -68,14 +63,12 @@
     </style>
 </head>
 <body>
-
 <header class="nav">
     <a href="index.html">Главная</a>
     <a href="about.html">О проекте</a>
     <a href="map.html" class="active">Карта</a>
     <a href="contact.html">Связь</a>
 </header>
-
 <div id="smart-panel">
     <div style="display: flex; gap: 10px;">
         <button id="btn-map" class="icon-btn" style="flex:1">🗺️</button>
@@ -87,208 +80,290 @@
         <button id="go-btn" class="icon-btn">🚀</button>
     </div>
 </div>
-
-<div id="ai-assistant" onclick="askAI()">🤖</div>
-
+<div id="ai-assistant">🤖</div>
 <div id="map-container"><div id="map" style="width: 100%; height: 100%;"></div></div>
+<div id="cameraModal" class="camera-modal">
+    <button class="close-camera" id="closeCameraBtn">✖</button>
+    <video id="cameraVideo" autoplay playsinline muted></video>
+</div>
 
 <script>
-    // --- ПРОВЕРКА HTTPS (перенаправление, если не localhost) ---
-    (function() {
-        if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-            // Показываем предупреждение (не перенаправляем, т.к. может быть локальная разработка)
+    // --- ПРОВЕРКА HTTPS (перенаправление) ---
+    if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+        if (confirm("Для работы камеры и микрофона требуется HTTPS. Перейти на HTTPS?")) {
+            location.protocol = 'https:';
+        } else {
             const warn = document.createElement('div');
             warn.className = 'https-warning';
-            warn.textContent = '⚠️ Для работы камеры и микрофона используйте HTTPS';
+            warn.textContent = '⚠️ Некоторые функции (камера, микрофон) могут не работать без HTTPS';
             document.body.appendChild(warn);
-            console.warn('Страница открыта по HTTP, микрофон и камера могут не работать.');
         }
-    })();
+    }
 
-    // --- ДАННЫЕ И ПЕРЕМЕННЫЕ ---
-    let lastTarget = "";           // последний запрос, по которому строился маршрут
-    let isRecording = false;       // состояние записи микрофона
-    let recognition = null;        // объект распознавания речи
+    // --- ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ---
+    let map;
+    let currentRouteLayer = null;
+    let currentRouteSource = null;
+    let lastTarget = "";           // последний успешный запрос маршрута
+    let userLocation = null;       // текущие координаты пользователя
+    let isRecording = false;       // состояние микрофона в поле поиска
+    let recognition = null;        // объект SpeechRecognition для поля поиска
+    let aiRecognition = null;      // отдельный объект для ИИ-помощника (чтобы не конфликтовать)
+    let cameraStream = null;       // поток камеры
+
+    // --- ЭЛЕМЕНТЫ DOM ---
     const micBtn = document.getElementById('mic-btn');
     const targetInput = document.getElementById('target-input');
     const goBtn = document.getElementById('go-btn');
+    const cameraModal = document.getElementById('cameraModal');
+    const cameraVideo = document.getElementById('cameraVideo');
+    const closeCameraBtn = document.getElementById('closeCameraBtn');
+    const btnCam = document.getElementById('btn-cam');
+    const btnMap = document.getElementById('btn-map');
+    const aiAssistant = document.getElementById('ai-assistant');
 
-    // База данных мест (для демонстрации)
-    const locationsDB = [
-        { lat: 53.747230, lng: 62.063310, aliases: ["акимат", "центр"] },
-        { lat: 53.753304, lng: 62.067347, aliases: ["мечеть", "мешіт"] }
-    ];
+    // --- ИНИЦИАЛИЗАЦИЯ КАРТЫ ---
+    map = new maplibregl.Map({
+        container: 'map',
+        style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+        center: [62.062, 53.747],
+        zoom: 14,
+        pitch: 45
+    });
 
-    // --- ИНИЦИАЛИЗАЦИЯ РАСПОЗНАВАНИЯ РЕЧИ ---
+    map.addControl(new maplibregl.NavigationControl(), 'top-right');
+    map.addControl(new maplibregl.GeolocateControl({
+        positionOptions: { enableHighAccuracy: true },
+        trackUserLocation: true,
+        showUserHeading: true
+    }), 'top-right');
+
+    // Получаем местоположение пользователя
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(pos => {
+            userLocation = [pos.coords.longitude, pos.coords.latitude];
+            map.flyTo({ center: userLocation, zoom: 15 });
+        }, err => console.warn('Геолокация недоступна:', err));
+    }
+
+    // --- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ДЛЯ МАРШРУТОВ ---
+    async function geocodeAddress(address) {
+        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`;
+        const response = await fetch(url);
+        const data = await response.json();
+        if (data.length === 0) throw new Error('Место не найдено');
+        return { lon: parseFloat(data[0].lon), lat: parseFloat(data[0].lat), display_name: data[0].display_name };
+    }
+
+    async function buildRouteOSRM(start, end) {
+        const url = `https://router.project-osrm.org/route/v1/driving/${start[0]},${start[1]};${end[0]},${end[1]}?overview=full&geometries=geojson`;
+        const response = await fetch(url);
+        const data = await response.json();
+        if (data.code !== 'Ok') throw new Error('Маршрут не найден');
+        return data.routes[0].geometry;
+    }
+
+    async function displayRoute(destinationAddress) {
+        if (!userLocation) {
+            alert('Не удалось определить ваше местоположение. Разрешите геолокацию.');
+            return false;
+        }
+        try {
+            const dest = await geocodeAddress(destinationAddress);
+            const routeGeometry = await buildRouteOSRM(userLocation, [dest.lon, dest.lat]);
+            
+            // Удаляем старый маршрут
+            if (currentRouteSource) map.removeLayer(currentRouteLayer);
+            if (currentRouteSource) map.removeSource(currentRouteSource);
+            
+            // Добавляем новый маршрут
+            map.addSource('route', {
+                type: 'geojson',
+                data: {
+                    type: 'Feature',
+                    properties: {},
+                    geometry: routeGeometry
+                }
+            });
+            map.addLayer({
+                id: 'route',
+                type: 'line',
+                source: 'route',
+                layout: { 'line-join': 'round', 'line-cap': 'round' },
+                paint: { 'line-color': '#2e7d32', 'line-width': 5, 'line-opacity': 0.8 }
+            });
+            currentRouteLayer = 'route';
+            currentRouteSource = 'route';
+            
+            // Добавляем маркер назначения
+            new maplibregl.Marker({ color: '#ff5252' })
+                .setLngLat([dest.lon, dest.lat])
+                .setPopup(new maplibregl.Popup().setHTML(`<b>${dest.display_name}</b>`))
+                .addTo(map);
+            
+            // Подгоняем границы карты
+            const bounds = new maplibregl.LngLatBounds();
+            bounds.extend(userLocation);
+            bounds.extend([dest.lon, dest.lat]);
+            map.fitBounds(bounds, { padding: 50 });
+            
+            return true;
+        } catch (err) {
+            alert('Ошибка: ' + err.message);
+            return false;
+        }
+    }
+
+    // --- ПОИСК И МАРШРУТ (кнопка "Ракета") ---
+    goBtn.onclick = async () => {
+        const query = targetInput.value.trim();
+        if (!query) {
+            alert('Введите или скажите место назначения.');
+            return;
+        }
+        if (query === lastTarget) {
+            alert(`Маршрут до "${query}" уже построен.`);
+            return;
+        }
+        const success = await displayRoute(query);
+        if (success) lastTarget = query;
+    };
+
+    // --- МИКРОФОН В ПОЛЕ ПОИСКА ---
     if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         recognition = new SpeechRecognition();
         recognition.lang = 'ru-RU';
-        recognition.interimResults = false;      // нам нужен только финальный результат
-        recognition.maxAlternatives = 1;
-
-        // Обработчик успешного распознавания
-        recognition.onresult = (event) => {
-            const transcript = event.results[0][0].transcript;
-            targetInput.value = transcript;
-            stopMic();  // останавливаем запись и убираем подсветку
-            // Опционально: автоматически строим маршрут после ввода
-            // goBtn.click(); // раскомментировать, если нужно автоматически строить
-        };
-
-        // Обработчик ошибок
-        recognition.onerror = (event) => {
-            console.error('Ошибка распознавания:', event.error);
-            let errorMessage = 'Не удалось распознать речь. ';
-            if (event.error === 'not-allowed') errorMessage += 'Разрешите доступ к микрофону.';
-            else if (event.error === 'network') errorMessage += 'Проверьте интернет-соединение.';
-            alert(errorMessage);
+        recognition.interimResults = false;
+        
+        recognition.onresult = (e) => {
+            targetInput.value = e.results[0][0].transcript;
             stopMic();
         };
-
-        // При завершении (в том числе при ошибке) гарантированно останавливаем запись
-        recognition.onend = () => {
-            stopMic();
-        };
+        recognition.onerror = () => stopMic();
+        recognition.onend = () => stopMic();
+        
+        function startMic() {
+            if (isRecording) return;
+            try {
+                recognition.start();
+                micBtn.classList.add('recording');
+                isRecording = true;
+            } catch(e) { alert('Ошибка запуска микрофона'); }
+        }
+        function stopMic() {
+            if (!isRecording) return;
+            try { recognition.stop(); } catch(e) {}
+            micBtn.classList.remove('recording');
+            isRecording = false;
+        }
+        micBtn.onclick = () => isRecording ? stopMic() : startMic();
     } else {
-        // Если браузер не поддерживает SpeechRecognition, отключаем кнопку
         micBtn.disabled = true;
         micBtn.style.opacity = '0.5';
-        micBtn.title = 'Ваш браузер не поддерживает голосовой ввод';
-        console.warn('SpeechRecognition не поддерживается');
     }
 
-    // --- УПРАВЛЕНИЕ МИКРОФОНОМ (кнопка) ---
-    function startMic() {
-        if (!recognition) {
-            alert('Голосовой ввод не поддерживается в этом браузере.');
+    // --- КАМЕРА ---
+    async function openCamera() {
+        if (cameraStream) {
+            cameraModal.style.display = 'flex';
             return;
         }
-        if (isRecording) return;
         try {
-            recognition.start();
-            micBtn.classList.add('recording');
-            isRecording = true;
-        } catch (e) {
-            console.error('Не удалось запустить распознавание:', e);
-            alert('Не удалось запустить микрофон. Проверьте разрешения.');
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+            cameraStream = stream;
+            cameraVideo.srcObject = stream;
+            cameraModal.style.display = 'flex';
+        } catch (err) {
+            alert('Не удалось получить доступ к камере: ' + (err.message || 'проверьте разрешения'));
         }
     }
-
-    function stopMic() {
-        if (!isRecording) return;
-        try {
-            recognition.stop(); // если запись активна, останавливаем
-        } catch (e) {
-            // иногда stop() выбрасывает ошибку, если распознавание уже остановлено
+    function closeCamera() {
+        cameraModal.style.display = 'none';
+        if (cameraStream) {
+            cameraStream.getTracks().forEach(track => track.stop());
+            cameraStream = null;
+            cameraVideo.srcObject = null;
         }
-        micBtn.classList.remove('recording');
-        isRecording = false;
     }
+    btnCam.onclick = openCamera;
+    closeCameraBtn.onclick = closeCamera;
 
-    // Клик по кнопке микрофона: если запись не идёт – начинаем, если идёт – останавливаем
-    micBtn.onclick = () => {
-        if (isRecording) {
-            stopMic();
-        } else {
-            startMic();
-        }
+    // --- КНОПКА КАРТЫ (сброс вида) ---
+    btnMap.onclick = () => {
+        if (userLocation) map.flyTo({ center: userLocation, zoom: 14 });
+        else map.flyTo({ center: [62.062, 53.747], zoom: 14 });
     };
 
-    // --- ПОИСК И МАРШРУТ (оптимизация) ---
-    function buildRoute(query) {
-        // Поиск по базе данных (демо-логика)
-        const lowerQuery = query.toLowerCase();
-        const target = locationsDB.find(l => l.aliases.some(alias => lowerQuery.includes(alias)));
-        
-        if (target) {
-            // Здесь должна быть реальная логика построения маршрута (OSRM/GraphHopper)
-            alert(`✅ Маршрут до "${query}" построен (координаты: ${target.lat}, ${target.lng})`);
-            console.log(`Маршрут до: ${query}`, target);
-            // Для демонстрации можно центрировать карту на точке
-            if (map) {
-                map.flyTo({ center: [target.lng, target.lat], zoom: 16, pitch: 60 });
-            }
-        } else {
-            alert(`❌ Не удалось найти место "${query}". Попробуйте уточнить запрос.`);
+    // --- ГОЛОСОВОЙ ПОМОЩНИК (ИИ) ---
+    let aiActive = false;
+    const synth = window.speechSynthesis;
+    function speak(text) {
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'ru-RU';
+        utterance.rate = 0.9;
+        synth.speak(utterance);
+    }
+    
+    async function handleAICommand(command) {
+        const lower = command.toLowerCase();
+        if (lower.includes('маршрут') || lower.includes('построй') || lower.includes('поехали')) {
+            // извлекаем место: например "построй маршрут до акимата"
+            let place = command.replace(/построй|маршрут|до|поехали/gi, '').trim();
+            if (place === '') place = targetInput.value.trim();
+            if (place) {
+                targetInput.value = place;
+                const success = await displayRoute(place);
+                if (success) {
+                    lastTarget = place;
+                    speak(`Маршрут до ${place} построен.`);
+                } else speak(`Не удалось найти ${place}.`);
+            } else speak('Скажите, куда построить маршрут.');
+        } 
+        else if (lower.includes('камера') || lower.includes('открой камеру')) {
+            openCamera();
+            speak('Открываю камеру.');
+        }
+        else if (lower.includes('проект') || lower.includes('что такое айдукс')) {
+            speak('AIDUX — это умная навигационная система с дополненной реальностью для Карабалыка.');
+        }
+        else if (lower.includes('контакты') || lower.includes('связь')) {
+            speak('Перехожу на страницу контактов.');
+            setTimeout(() => window.location.href = 'contact.html', 1000);
+        }
+        else if (lower.includes('привет')) {
+            speak('Здравствуйте! Я голосовой помощник AIDUX. Чем могу помочь?');
+        }
+        else {
+            speak('Я вас не понял. Попробуйте сказать: построй маршрут до акимата, открой камеру, или что такое AIDUX.');
         }
     }
 
-    // Обработчик кнопки "Ракета" (построить маршрут)
-    goBtn.onclick = () => {
-        const currentInput = targetInput.value.trim();
-        if (currentInput === "") {
-            alert("Введите или скажите место назначения.");
+    function startAIAssistant() {
+        if (aiActive) return;
+        if (!('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)) {
+            alert('Ваш браузер не поддерживает голосовой ввод.');
             return;
         }
-
-        // Защита от повторного построения того же маршрута
-        if (currentInput === lastTarget && lastTarget !== "") {
-            console.log("Маршрут уже построен для: " + currentInput);
-            // Можно показать всплывашку, но не обязательно
-            alert(`Маршрут к "${currentInput}" уже активен.`);
-            return;
-        }
-        
-        // Сохраняем последний запрос и строим маршрут
-        lastTarget = currentInput;
-        buildRoute(currentInput);
-    };
-
-    // Дополнительно: если пользователь нажимает Enter в поле ввода, строим маршрут
-    targetInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            goBtn.click();
-        }
-    });
-
-    // --- ИИ АССИСТЕНТ (простая логика) ---
-    function askAI() {
-        const userPrompt = prompt("🤖 Я ИИ AIDUX. Чем помочь? (Напр: 'Открой контакты', 'Что такое проект?')");
-        if (!userPrompt) return;
-        const promptLower = userPrompt.toLowerCase();
-        if (promptLower.includes("карту")) {
-            window.location.href = "map.html";
-        } else if (promptLower.includes("проект") || promptLower.includes("о чем") || promptLower.includes("это")) {
-            alert("AIDUX — это умная навигационная платформа для Карабалыка с элементами дополненной реальности и 3D-визуализацией.");
-        } else if (promptLower.includes("связь") || promptLower.includes("контакт")) {
-            window.location.href = "contact.html";
-        } else if (promptLower.includes("маршрут") || promptLower.includes("навигация")) {
-            document.getElementById('target-input').focus();
-            alert("Введите или скажите место назначения в поле поиска.");
-        } else {
-            alert("Я пока учусь, но скоро смогу ответить на всё!");
-        }
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        aiRecognition = new SpeechRecognition();
+        aiRecognition.lang = 'ru-RU';
+        aiRecognition.interimResults = false;
+        aiRecognition.onstart = () => { aiActive = true; };
+        aiRecognition.onresult = async (e) => {
+            const command = e.results[0][0].transcript;
+            speak('Слушаю...');
+            await handleAICommand(command);
+            aiActive = false;
+        };
+        aiRecognition.onerror = () => {
+            speak('Не удалось распознать команду.');
+            aiActive = false;
+        };
+        aiRecognition.onend = () => { aiActive = false; };
+        aiRecognition.start();
     }
-    window.askAI = askAI; // делаем функцию глобальной для onclick
-
-    // --- КАРТА (MapLibre) ---
-    const map = new maplibregl.Map({
-        container: 'map',
-        style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
-        center: [62.062, 53.747],
-        zoom: 15,
-        pitch: 60
-    });
-
-    // Добавим маркер для центра (пример)
-    map.on('load', () => {
-        // Небольшая заглушка: маркер центра
-        new maplibregl.Marker({ color: '#2e7d32' })
-            .setLngLat([62.062, 53.747])
-            .setPopup(new maplibregl.Popup().setHTML('Вы здесь (пример)'))
-            .addTo(map);
-    });
-
-    // Демо-функции для кнопок панели (можно расширить)
-    document.getElementById('btn-map').onclick = () => {
-        map.flyTo({ center: [62.062, 53.747], zoom: 14 });
-        alert("Карта: режим обзора");
-    };
-    document.getElementById('btn-cam').onclick = () => {
-        alert("AR-камера (требуется HTTPS и разрешение камеры)");
-        // Здесь может быть запуск AR-сцены
-    };
+    aiAssistant.onclick = startAIAssistant;
 </script>
 </body>
 </html>
