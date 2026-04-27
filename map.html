@@ -1,43 +1,280 @@
 <!DOCTYPE html>
-<html lang="ru"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><title>AIDUX | Smart Map</title><link rel="stylesheet" href="style.css"><script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script><link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet"><script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.128.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.128.0/examples/jsm/"}}</script><script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script><script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script><style>body{margin:0;overflow:hidden;background:#050505}.nav{position:fixed;top:0;width:100%;z-index:4000;background:rgba(0,0,0,0.85);border-bottom:1px solid #2e7d32}#map-container{position:absolute;top:0;left:0;width:100%;height:100%;z-index:100}#smart-panel{position:fixed;top:75px;left:50%;transform:translateX(-50%);z-index:3000;width:92%;max-width:450px;padding:15px;border-radius:15px;background:rgba(0,0,0,0.8);border:1px solid #2e7d32;backdrop-filter:blur(10px)}.search-row{display:flex;gap:8px;margin-top:10px;position:relative}input{flex:1;height:45px;background:#111;border:1px solid #2e7d32;color:#fff;border-radius:8px;padding:0 10px;font-size:16px}.icon-btn{width:45px;height:45px;background:#2e7d32;border:none;border-radius:8px;cursor:pointer;font-size:20px}.icon-btn:hover{transform:scale(1.05)}.recording{background:#ff5252!important}.autocomplete-items{position:absolute;top:100%;left:0;right:0;background:#222;border:1px solid #2e7d32;border-top:none;border-radius:0 0 8px 8px;z-index:3100;max-height:200px;overflow-y:auto}.autocomplete-items div{padding:10px;cursor:pointer;color:#fff;border-bottom:1px solid #333}.autocomplete-items div:hover{background:#2e7d32}.ar-scene{position:fixed;top:0;left:0;width:100%;height:100%;z-index:7000;display:none;background:#000}.close-ar{position:absolute;top:20px;right:20px;background:rgba(0,0,0,0.7);color:#fff;border:none;font-size:30px;cursor:pointer;width:50px;height:50px;border-radius:50%;z-index:7100}.https-warning{position:fixed;bottom:20px;left:20px;z-index:6000;background:#ff5252;color:#fff;padding:8px 15px;border-radius:20px;font-size:12px}#voiceBtn{bottom:20px;right:20px;z-index:5000}#voiceText{bottom:90px;right:20px;z-index:5000}</style></head><body>
-<header class="nav glass"><a href="index.html" class="logo">AIDUX</a><nav class="nav-links"><a href="index.html">Главная</a><a href="about.html">О проекте</a><a href="map.html" class="active">Карта</a><a href="contact.html">Связь</a></nav></header>
-<div id="smart-panel"><div style="display:flex;gap:10px"><button id="btn-map" class="icon-btn">🗺️</button><button id="btn-ar" class="icon-btn">📷</button></div><div class="search-row"><input type="text" id="target-input" placeholder="Куда идем? (школа, мечеть, акимат)" autocomplete="off"><button id="mic-btn" class="icon-btn">🎤</button><button id="go-btn" class="icon-btn">🚀</button></div></div>
-<div id="map-container"><div id="map" style="width:100%;height:100%"></div></div>
-<div id="arScene" class="ar-scene"><button class="close-ar" id="closeArBtn">✖</button><a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false"><a-marker preset="hiro"><a-entity gltf-model="url(doomr.glb)" scale="0.05 0.05 0.05"></a-entity></a-marker><a-entity camera></a-entity></a-scene></div>
-<button id="voiceBtn">🎙️</button><div id="voiceText">AIDUX готов</div>
-<script src="script.js"></script><script src="voice.js"></script>
-<script type="module">
-import*as THREE from"three";import{GLTFLoader}from"three/addons/loaders/GLTFLoader.js";
-if(location.protocol!="https:"&&location.hostname!="localhost"&&location.hostname!="127.0.0.1"){if(confirm("Для работы камеры и микрофона требуется HTTPS. Перейти?"))location.protocol="https:";else{let w=document.createElement("div");w.className="https-warning";w.textContent="⚠️ Некоторые функции могут не работать без HTTPS";document.body.appendChild(w);}}
-// Локальные места с приоритетом (школа1, школа2, мечеть, акимат и т.д.)
-const locations=[
-{lat:53.74723007127184,lng:62.06331027656053,aliases:["акимат","akimat","әкімат"],priority:1},
-{lat:53.746552406628794,lng:62.061850574674715,aliases:["дюсш","dyussh","дюсш"],priority:2},
-{lat:53.74672529532632,lng:62.062435293253195,aliases:["дом культуры","house of culture","мәдениет үйі"],priority:2},
-{lat:53.74978812601662,lng:62.053696745170924,aliases:["мечеть","mosque","мешіт"],priority:1},
-{lat:53.74811054892305,lng:62.05363895876727,aliases:["школа №1","school 1","мектеп №1","школа 1"],priority:1},
-{lat:53.749254494869646,lng:62.07068433901487,aliases:["школа №2","school 2","мектеп №2","школа 2"],priority:1}
-];
-function levenshtein(a,b){const m=Array(b.length+1).fill().map(()=>Array(a.length+1).fill());for(let i=0;i<=a.length;i++)m[0][i]=i;for(let j=0;j<=b.length;j++)m[j][0]=j;for(let j=1;j<=b.length;j++)for(let i=1;i<=a.length;i++){const cost=a[i-1]===b[j-1]?0:1;m[j][i]=Math.min(m[j][i-1]+1,m[j-1][i]+1,m[j-1][i-1]+cost);}return m[b.length][a.length];}
-function suggestLocation(query,userLatLng=null){if(!query)return null;const norm=query.toLowerCase().trim();let candidates=[];for(const loc of locations){for(const alias of loc.aliases){const a=alias.toLowerCase();if(a.includes(norm))return{location:loc,distance:userLatLng?getDistance(userLatLng,{lat:loc.lat,lng:loc.lng}):0,priority:loc.priority};const dist=levenshtein(norm,a);if(dist<=3)candidates.push({location:loc,score:dist,alias:alias,priority:loc.priority});}}if(candidates.length===0)return null;candidates.sort((a,b)=>{if(a.priority!==b.priority)return a.priority-b.priority;return a.score-b.score;});const best=candidates[0].location;const dist=userLatLng?getDistance(userLatLng,{lat:best.lat,lng:best.lng}):0;return{location:best,distance:dist};}
-function getDistance(p1,p2){const R=6371e3,φ1=p1.lat*Math.PI/180,φ2=p2.lat*Math.PI/180,Δφ=(p2.lat-p1.lat)*Math.PI/180,Δλ=(p2.lng-p1.lng)*Math.PI/180;const a=Math.sin(Δφ/2)**2+Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)**2;return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));}
-function getAutocompleteSuggestions(input){const val=input.toLowerCase().trim();if(!val)return[];const matches=[];for(const loc of locations)for(const alias of loc.aliases)if(alias.toLowerCase().startsWith(val))matches.push(alias);return[...new Set(matches)];}
-let map,currentRouteLayer,currentRouteSource,lastTarget="",userLocation=null,userLatLngObj=null,isRecording=!1,recognition=null,searching=!1;
-let threeRenderer,threeScene,threeCamera,modelGroup,modelLoaded=!1;
-const targetInput=document.getElementById("target-input"),micBtn=document.getElementById("mic-btn"),goBtn=document.getElementById("go-btn"),btnMap=document.getElementById("btn-map"),btnAr=document.getElementById("btn-ar"),arScene=document.getElementById("arScene"),closeArBtn=document.getElementById("closeArBtn");
-let autocompleteDiv=null;
-function showAutocomplete(){if(autocompleteDiv)autocompleteDiv.remove();const s=getAutocompleteSuggestions(targetInput.value);if(!s.length)return;autocompleteDiv=document.createElement("div");autocompleteDiv.className="autocomplete-items";targetInput.parentNode.appendChild(autocompleteDiv);s.forEach(alias=>{const div=document.createElement("div");div.textContent=alias;div.onclick=()=>{targetInput.value=alias;autocompleteDiv.remove();autocompleteDiv=null;};autocompleteDiv.appendChild(div);});}
-targetInput.addEventListener("input",showAutocomplete);
-document.addEventListener("click",e=>{if(autocompleteDiv&&!targetInput.contains(e.target)&&!autocompleteDiv.contains(e.target)){autocompleteDiv.remove();autocompleteDiv=null;}});
-async function geocodeAddress(address){const url=`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`;const resp=await fetch(url);const data=await resp.json();if(!data.length)throw new Error("Место не найдено");return{lon:parseFloat(data[0].lon),lat:parseFloat(data[0].lat),name:data[0].display_name};}
-async function buildRouteOSRM(start,end){const url=`https://router.project-osrm.org/route/v1/driving/${start[0]},${start[1]};${end[0]},${end[1]}?overview=full&geometries=geojson`;const resp=await fetch(url);const data=await resp.json();if(data.code!=="Ok")throw new Error("Маршрут не найден");return data.routes[0].geometry;}
-async function displayRoute(destinationText){if(!userLocation){if(window.AIDUX?.speak)window.AIDUX.speak("Не удалось определить местоположение");return!1}goBtn.classList.add("searching");searching=!0;try{const suggested=suggestLocation(destinationText,userLatLngObj);let searchQuery=destinationText;if(suggested)searchQuery=suggested.location.aliases[0];const dest=await geocodeAddress(searchQuery);const geom=await buildRouteOSRM(userLocation,[dest.lon,dest.lat]);if(currentRouteSource){if(map.getLayer(currentRouteLayer))map.removeLayer(currentRouteLayer);if(map.getSource(currentRouteSource))map.removeSource(currentRouteSource);}map.addSource("route",{type:"geojson",data:{type:"Feature",properties:{},geometry:geom}});map.addLayer({id:"route",type:"line",source:"route",layout:{"line-join":"round","line-cap":"round"},paint:{"line-color":"#2e7d32","line-width":5,"line-opacity":0.8}});currentRouteLayer="route";currentRouteSource="route";new maplibregl.Marker({color:"#ff5252"}).setLngLat([dest.lon,dest.lat]).setPopup(new maplibregl.Popup().setHTML(`<b>${dest.name}</b>`)).addTo(map);map.fitBounds(new maplibregl.LngLatBounds().extend(userLocation).extend([dest.lon,dest.lat]),{padding:50});if(window.AIDUX?.speak)window.AIDUX.speak(`Маршрут до ${searchQuery} построен`);return!0}catch(err){if(window.AIDUX?.speak)window.AIDUX.speak(`Ошибка: ${err.message}`);return!1}finally{goBtn.classList.remove("searching");searching=!1}}
-if("SpeechRecognition"in window||"webkitSpeechRecognition"in window){const SR=window.SpeechRecognition||window.webkitSpeechRecognition;recognition=new SR;recognition.lang="ru-RU";recognition.interimResults=!1;recognition.onresult=e=>{targetInput.value=e.results[0][0].transcript;stopMic();};recognition.onerror=()=>stopMic();recognition.onend=()=>stopMic();function startMic(){if(isRecording)return;try{recognition.start();micBtn.classList.add("recording");isRecording=!0;}catch(e){}}function stopMic(){if(!isRecording)return;try{recognition.stop();}catch(e){}micBtn.classList.remove("recording");isRecording=!1;}micBtn.onclick=()=>isRecording?stopMic():startMic();}else{micBtn.disabled=true;micBtn.style.opacity="0.5";}
-function initThreeOverlay(){const c=map.getCanvasContainer();const r=new THREE.WebGLRenderer({alpha:true});r.setSize(c.clientWidth,c.clientHeight);c.appendChild(r.domElement);threeRenderer=r;threeScene=new THREE.Scene();threeCamera=new THREE.Camera();modelGroup=new THREE.Group();threeScene.add(modelGroup);const loader=new GLTFLoader();loader.load("doomr.glb",gltf=>{gltf.scene.scale.set(2,2,2);modelGroup.add(gltf.scene);modelLoaded=true;updateModelPosition();},undefined,err=>console.error("3D модель не загружена",err));function updateModelPosition(){if(!modelLoaded||!map)return;const center=map.getCenter();const pos=map.project(center);modelGroup.position.set(pos.x,pos.y,0);}map.on("move",updateModelPosition);map.on("zoom",updateModelPosition);map.on("resize",()=>{r.setSize(c.clientWidth,c.clientHeight);updateModelPosition();});function animate(){if(threeRenderer&&threeScene&&threeCamera)threeRenderer.render(threeScene,threeCamera);requestAnimationFrame(animate);}animate();updateModelPosition();}
-btnAr.onclick=()=>{arScene.style.display="block";if(window.AIDUX?.speak)window.AIDUX.speak("Открываю дополненную реальность");};closeArBtn.onclick=()=>{arScene.style.display="none";};btnMap.onclick=()=>{if(userLocation)map.flyTo({center:userLocation,zoom:14});else map.flyTo({center:[62.062,53.747],zoom:14});};goBtn.onclick=async()=>{if(searching)return;const q=targetInput.value.trim();if(!q){if(window.AIDUX?.speak)window.AIDUX.speak("Введите или скажите место");return;}const suggestedObj=suggestLocation(q,userLatLngObj);let finalQuery=q;if(suggestedObj){const pa=suggestedObj.location.aliases[0];if(pa.toLowerCase()!==q.toLowerCase()){if(confirm(`Возможно, вы имели в виду "${pa}"? Нажмите ОК для маршрута.`))finalQuery=pa;}}if(finalQuery===lastTarget){if(window.AIDUX?.speak)window.AIDUX.speak(`Маршрут до "${finalQuery}" уже построен`);return;}const success=await displayRoute(finalQuery);if(success)lastTarget=finalQuery;};
-map=new maplibregl.Map({container:"map",style:"https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",center:[62.062,53.747],zoom:14,pitch:45});map.addControl(new maplibregl.NavigationControl(),"top-right");map.addControl(new maplibregl.GeolocateControl({positionOptions:{enableHighAccuracy:true},trackUserLocation:true,showUserHeading:true}),"top-right");
-if(navigator.geolocation)navigator.geolocation.getCurrentPosition(pos=>{userLocation=[pos.coords.longitude,pos.coords.latitude];userLatLngObj={lat:pos.coords.latitude,lng:pos.coords.longitude};map.flyTo({center:userLocation,zoom:15});},err=>console.warn(err));
-map.on("load",()=>{locations.forEach(loc=>{new maplibregl.Marker({color:"#2e7d32"}).setLngLat([loc.lng,loc.lat]).setPopup(new maplibregl.Popup().setHTML(`<b>${loc.aliases[0]}</b>`)).addTo(map);});initThreeOverlay();});
-setTimeout(()=>{if(window.initVoice)window.initVoice((cmd,raw)=>{const l=cmd;if(l.includes("маршрут")||l.includes("построй")||l.includes("поехали")){let place=raw.replace(/построй|маршрут|до|поехали/gi,"").trim();if(!place)place=targetInput.value.trim();if(place){targetInput.value=place;displayRoute(place);}else window.AIDUX.speak("Скажите, куда построить маршрут");return 1}if(l.includes("камера")||l.includes("ar")){btnAr.click();return 1}if(l.includes("где я")){if(userLocation)window.AIDUX.speak(`Вы в точке ${userLocation[1].toFixed(4)}, ${userLocation[0].toFixed(4)}`);else window.AIDUX.speak("Местоположение не определено");return 1}if(l.includes("что такое aidux")){window.AIDUX.speak("AIDUX — умная навигация с AR для Костаная.");return 1}if(l.includes("контакты")){window.AIDUX.speak("Перехожу на страницу контактов");setTimeout(()=>location.href="contact.html",1000);return 1}if(l.includes("привет")){window.AIDUX.speak("Здравствуйте! Я AIDUX. Скажите 'построй маршрут до мечети'.");return 1}return 0;});},100);
-targetInput.addEventListener("keypress",e=>{if(e.key==="Enter")goBtn.click();});
-</script></body></html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AIDUX | Google Maps с AR</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Google Maps API -->
+    <script src="https://maps.googleapis.com/maps/api/js?key=AQ.Ab8RN6IKHHMLcwMNSBhfr2ROWAUasmNEyaUAJJLxeawFySi4Bg&libraries=places,directions&callback=initMap" async defer></script>
+    <!-- A-Frame & AR.js -->
+    <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
+    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; background: #050505; }
+        .nav { position: fixed; top: 0; width: 100%; z-index: 4000; background: rgba(0,0,0,0.85); border-bottom: 1px solid #2e7d32; display: flex; justify-content: space-around; padding: 15px; }
+        .nav a { color: white; text-decoration: none; font-weight: bold; }
+        .nav a.active { color: #a5ffb1; }
+        #map { height: 100%; width: 100%; position: absolute; top: 0; left: 0; z-index: 100; }
+        #smart-panel {
+            position: fixed; top: 75px; left: 50%; transform: translateX(-50%);
+            z-index: 3000; width: 92%; max-width: 450px;
+            padding: 15px; border-radius: 15px; background: rgba(0,0,0,0.8);
+            border: 1px solid #2e7d32; backdrop-filter: blur(10px);
+        }
+        .search-row { display: flex; gap: 8px; margin-top: 10px; }
+        input { flex: 1; height: 45px; background: #111; border: 1px solid #2e7d32; color: white; border-radius: 8px; padding: 0 10px; }
+        .icon-btn { width: 45px; height: 45px; background: #2e7d32; border: none; border-radius: 8px; cursor: pointer; font-size: 20px; color: white; }
+        .icon-btn:hover { transform: scale(1.05); }
+        .recording { background: #ff5252 !important; }
+        .ar-scene { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 7000; display: none; background: black; }
+        .close-ar { position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.7); color: white; border: none; font-size: 30px; cursor: pointer; width: 50px; height: 50px; border-radius: 50%; z-index: 7100; }
+        #voiceBtn, #voiceText { z-index: 5000; }
+    </style>
+</head>
+<body>
+<header class="nav">
+    <a href="index.html">Главная</a>
+    <a href="about.html">О проекте</a>
+    <a href="map.html" class="active">Карта</a>
+    <a href="contact.html">Связь</a>
+</header>
+
+<div id="smart-panel">
+    <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+        <button id="btn-my-location" class="icon-btn">📍</button>
+        <button id="btn-ar" class="icon-btn">📷</button>
+    </div>
+    <div class="search-row">
+        <input type="text" id="target-input" placeholder="Куда идем? (школа, мечеть, акимат)" autocomplete="off">
+        <button id="mic-btn" class="icon-btn">🎤</button>
+        <button id="go-btn" class="icon-btn">🚀</button>
+    </div>
+</div>
+
+<div id="map"></div>
+
+<div id="arScene" class="ar-scene">
+    <button class="close-ar" id="closeArBtn">✖</button>
+    <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;">
+        <a-marker preset="hiro">
+            <a-entity gltf-model="url(doomr.glb)" scale="0.05 0.05 0.05"></a-entity>
+        </a-marker>
+        <a-entity camera></a-entity>
+    </a-scene>
+</div>
+
+<button id="voiceBtn">🎙️</button>
+<div id="voiceText">AIDUX готов</div>
+
+<script src="script.js"></script>
+<script src="voice.js"></script>
+
+<script>
+    let map, directionsService, directionsRenderer, userMarker, userLocation = null;
+    let currentRoute = null;
+    let lastTarget = "";
+    let isRecording = false;
+    let recognition = null;
+    let searching = false;
+    let autocomplete;
+
+    const targetInput = document.getElementById('target-input');
+    const micBtn = document.getElementById('mic-btn');
+    const goBtn = document.getElementById('go-btn');
+    const btnMyLocation = document.getElementById('btn-my-location');
+    const btnAr = document.getElementById('btn-ar');
+    const arScene = document.getElementById('arScene');
+    const closeArBtn = document.getElementById('closeArBtn');
+
+    // Локальные места (Костанай)
+    const locations = [
+        { lat: 53.747230, lng: 62.063310, name: "Акимат", aliases: ["акимат", "akimat", "әкімат"] },
+        { lat: 53.746552, lng: 62.061851, name: "ДЮСШ", aliases: ["дюсш", "dyussh"] },
+        { lat: 53.746725, lng: 62.062435, name: "Дом культуры", aliases: ["дом культуры", "house of culture"] },
+        { lat: 53.749788, lng: 62.053697, name: "Мечеть", aliases: ["мечеть", "mosque", "мешіт"] },
+        { lat: 53.748111, lng: 62.053639, name: "Школа №1", aliases: ["школа №1", "школа 1", "school 1"] },
+        { lat: 53.749254, lng: 62.070684, name: "Школа №2", aliases: ["школа №2", "школа 2", "school 2"] }
+    ];
+
+    // Инициализация карты
+    function initMap() {
+        const center = { lat: 53.747, lng: 62.063 };
+        map = new google.maps.Map(document.getElementById('map'), {
+            center: center,
+            zoom: 14,
+            styles: [{ featureType: "poi", elementType: "labels", stylers: [{ visibility: "off" }] }] // опционально
+        });
+        directionsService = new google.maps.DirectionsService();
+        directionsRenderer = new google.maps.DirectionsRenderer({ map: map, suppressMarkers: false });
+        directionsRenderer.setMap(map);
+
+        // Добавляем маркеры локальных мест
+        locations.forEach(loc => {
+            new google.maps.Marker({
+                position: { lat: loc.lat, lng: loc.lng },
+                map: map,
+                title: loc.name,
+                icon: { url: "http://maps.google.com/mapfiles/ms/icons/green-dot.png" }
+            });
+        });
+
+        // Геолокация пользователя
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(pos => {
+                userLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                if (userMarker) userMarker.setMap(null);
+                userMarker = new google.maps.Marker({
+                    position: userLocation,
+                    map: map,
+                    title: "Вы здесь",
+                    icon: { url: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png" }
+                });
+                map.setCenter(userLocation);
+            }, err => console.warn("Геолокация недоступна"));
+        }
+
+        // Автокомплит (Google Places)
+        autocomplete = new google.maps.places.Autocomplete(targetInput);
+        autocomplete.bindTo('bounds', map);
+    }
+
+    // Построение маршрута через Google Directions
+    async function displayRoute(destinationText) {
+        if (!userLocation) {
+            if (window.AIDUX?.speak) window.AIDUX.speak("Не удалось определить ваше местоположение");
+            return false;
+        }
+        goBtn.classList.add('searching');
+        searching = true;
+        try {
+            // Сначала ищем среди локальных мест
+            let destination = null;
+            const lowerQuery = destinationText.toLowerCase();
+            for (let loc of locations) {
+                if (loc.aliases.some(alias => alias.toLowerCase() === lowerQuery || alias.toLowerCase().includes(lowerQuery))) {
+                    destination = { lat: loc.lat, lng: loc.lng, name: loc.name };
+                    break;
+                }
+            }
+            // Если не нашли локально, используем Places API
+            if (!destination) {
+                const geocoder = new google.maps.Geocoder();
+                const result = await new Promise((resolve) => {
+                    geocoder.geocode({ address: destinationText + ", Костанай" }, (results, status) => {
+                        if (status === "OK" && results[0]) resolve(results[0].geometry.location);
+                        else resolve(null);
+                    });
+                });
+                if (!result) throw new Error("Место не найдено");
+                destination = { lat: result.lat(), lng: result.lng(), name: destinationText };
+            }
+
+            const request = {
+                origin: userLocation,
+                destination: destination,
+                travelMode: google.maps.TravelMode.DRIVING
+            };
+            directionsService.route(request, (result, status) => {
+                if (status === "OK") {
+                    directionsRenderer.setDirections(result);
+                    map.fitBounds(result.routes[0].bounds);
+                    if (window.AIDUX?.speak) window.AIDUX.speak(`Маршрут до ${destination.name} построен`);
+                } else {
+                    throw new Error("Маршрут не найден");
+                }
+            });
+            return true;
+        } catch (err) {
+            if (window.AIDUX?.speak) window.AIDUX.speak(`Ошибка: ${err.message}`);
+            return false;
+        } finally {
+            goBtn.classList.remove('searching');
+            searching = false;
+        }
+    }
+
+    // Микрофон для поля поиска
+    if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
+        const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+        recognition = new SR();
+        recognition.lang = 'ru-RU';
+        recognition.interimResults = false;
+        recognition.onresult = (e) => {
+            targetInput.value = e.results[0][0].transcript;
+            stopMic();
+        };
+        recognition.onerror = () => stopMic();
+        function startMic() {
+            if (isRecording) return;
+            recognition.start();
+            micBtn.classList.add('recording');
+            isRecording = true;
+        }
+        function stopMic() {
+            if (!isRecording) return;
+            recognition.stop();
+            micBtn.classList.remove('recording');
+            isRecording = false;
+        }
+        micBtn.onclick = () => isRecording ? stopMic() : startMic();
+    } else {
+        micBtn.disabled = true;
+    }
+
+    // Кнопки
+    btnMyLocation.onclick = () => {
+        if (userLocation) map.setCenter(userLocation);
+        else if (window.AIDUX?.speak) window.AIDUX.speak("Местоположение не определено");
+    };
+    btnAr.onclick = () => { arScene.style.display = 'block'; if(window.AIDUX?.speak) window.AIDUX.speak("Открываю AR"); };
+    closeArBtn.onclick = () => { arScene.style.display = 'none'; };
+    goBtn.onclick = async () => {
+        if (searching) return;
+        const query = targetInput.value.trim();
+        if (!query) {
+            if(window.AIDUX?.speak) window.AIDUX.speak("Введите или скажите место");
+            return;
+        }
+        if (query === lastTarget) {
+            if(window.AIDUX?.speak) window.AIDUX.speak(`Маршрут до ${query} уже построен`);
+            return;
+        }
+        const success = await displayRoute(query);
+        if (success) lastTarget = query;
+    };
+    targetInput.addEventListener('keypress', e => { if (e.key === 'Enter') goBtn.click(); });
+
+    // Глобальный initMap для callback Google API
+    window.initMap = initMap;
+
+    // Кастомный обработчик для голосового помощника
+    setTimeout(() => {
+        if (window.initVoice) {
+            window.initVoice((cmd, raw) => {
+                const l = cmd.toLowerCase();
+                if (l.includes('маршрут') || l.includes('построй') || l.includes('поехали')) {
+                    let place = raw.replace(/построй|маршрут|до|поехали/gi, '').trim();
+                    if (!place) place = targetInput.value.trim();
+                    if (place) {
+                        targetInput.value = place;
+                        displayRoute(place);
+                    } else window.AIDUX.speak("Скажите, куда построить маршрут");
+                    return true;
+                }
+                if (l.includes('камера') || l.includes('ar')) { btnAr.click(); return true; }
+                if (l.includes('где я')) {
+                    if (userLocation) window.AIDUX.speak(`Вы в точке ${userLocation.lat.toFixed(4)}, ${userLocation.lng.toFixed(4)}`);
+                    else window.AIDUX.speak("Местоположение не определено");
+                    return true;
+                }
+                if (l.includes('что такое aidux')) { window.AIDUX.speak("AIDUX — умная навигация с AR для Костаная."); return true; }
+                if (l.includes('контакты')) { window.AIDUX.speak("Перехожу на страницу контактов"); setTimeout(() => location.href = "contact.html", 1000); return true; }
+                if (l.includes('привет')) { window.AIDUX.speak("Здравствуйте! Я AIDUX. Скажите 'построй маршрут до мечети'."); return true; }
+                return false;
+            });
+        }
+    }, 300);
+</script>
+</body>
+</html>
