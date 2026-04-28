@@ -3,278 +3,195 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AIDUX | Google Maps с AR</title>
-    <link rel="stylesheet" href="style.css">
-    <!-- Google Maps API -->
-    <script src="https://maps.googleapis.com/maps/api/js?key=AQ.Ab8RN6IKHHMLcwMNSBhfr2ROWAUasmNEyaUAJJLxeawFySi4Bg&libraries=places,directions&callback=initMap" async defer></script>
-    <!-- A-Frame & AR.js -->
+    <title>AIDUX | Карта</title>
+    
     <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+    <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+    <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
+    <script src="https://unpkg.com/three@0.147.0/build/three.min.js"></script>
+    <script src="https://unpkg.com/three@0.147.0/examples/js/loaders/GLTFLoader.js"></script>
+    <link rel="stylesheet" href="style.css">
+
     <style>
-        body { margin: 0; overflow: hidden; background: #050505; }
-        .nav { position: fixed; top: 0; width: 100%; z-index: 4000; background: rgba(0,0,0,0.85); border-bottom: 1px solid #2e7d32; display: flex; justify-content: space-around; padding: 15px; }
-        .nav a { color: white; text-decoration: none; font-weight: bold; }
-        .nav a.active { color: #a5ffb1; }
-        #map { height: 100%; width: 100%; position: absolute; top: 0; left: 0; z-index: 100; }
-        #smart-panel {
-            position: fixed; top: 75px; left: 50%; transform: translateX(-50%);
-            z-index: 3000; width: 92%; max-width: 450px;
-            padding: 15px; border-radius: 15px; background: rgba(0,0,0,0.8);
-            border: 1px solid #2e7d32; backdrop-filter: blur(10px);
-        }
-        .search-row { display: flex; gap: 8px; margin-top: 10px; }
-        input { flex: 1; height: 45px; background: #111; border: 1px solid #2e7d32; color: white; border-radius: 8px; padding: 0 10px; }
-        .icon-btn { width: 45px; height: 45px; background: #2e7d32; border: none; border-radius: 8px; cursor: pointer; font-size: 20px; color: white; }
-        .icon-btn:hover { transform: scale(1.05); }
-        .recording { background: #ff5252 !important; }
-        .ar-scene { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 7000; display: none; background: black; }
-        .close-ar { position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.7); color: white; border: none; font-size: 30px; cursor: pointer; width: 50px; height: 50px; border-radius: 50%; z-index: 7100; }
-        #voiceBtn, #voiceText { z-index: 5000; }
+        body { margin: 0; overflow: hidden; background: #050505; font-family: sans-serif; }
+        .nav { position: fixed; top: 0; width: 100%; z-index: 3000; background: rgba(0,0,0,0.9); }
+        .glass { background: rgba(0,0,0,0.8); border: 1px solid #2e7d32; border-radius: 12px; }
+        
+        #smart-panel { position: fixed; top: 70px; left: 50%; transform: translateX(-50%); z-index: 3000; width: 90%; max-width: 450px; display: flex; flex-direction: column; gap: 8px; padding: 12px; }
+        .toggle-group { display: flex; gap: 8px; }
+        .toggle-btn { flex: 1; padding: 10px; border-radius: 6px; border: 1px solid #2e7d32; color: white; background: rgba(0,0,0,0.5); cursor: pointer; font-weight: bold; }
+        .active { background: #2e7d32 !important; box-shadow: 0 0 10px #2e7d32; }
+        
+        .search-row { display: flex; gap: 5px; }
+        #target-input { flex: 1; padding: 10px; background: rgba(0,0,0,0.8); border: 1px solid #2e7d32; color: #a5ffb1; border-radius: 6px; outline: none; }
+        .icon-btn { width: 40px; height: 40px; background: #2e7d32; color: white; border: none; border-radius: 6px; cursor: pointer; }
+        
+        #lang-select { background: #050505; color: #a5ffb1; border: 1px solid #2e7d32; border-radius: 6px; padding: 5px; }
+
+        #map-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 100; }
+        #status-bar { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 3000; color: #a5ffb1; padding: 8px; text-align: center; width: 80%; }
+        
+        a-scene { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 50; }
     </style>
 </head>
 <body>
-<header class="nav">
-    <a href="index.html">Главная</a>
-    <a href="about.html">О проекте</a>
-    <a href="map.html" class="active">Карта</a>
-    <a href="contact.html">Связь</a>
+
+<header class="nav glass">
+    <a href="index.html" class="logo" style="padding: 10px; color: #a5ffb1; text-decoration: none; font-weight: bold;">AIDUX</a>
+    <nav class="nav-links" style="display: flex; gap: 10px; padding: 10px;">
+        <a href="index.html" style="color: white; text-decoration: none;">Главная</a>
+        <a href="about.html" style="color: white; text-decoration: none;">О проекте</a>
+        <a href="map.html" style="color: #a5ffb1; text-decoration: none;">Карта</a>
+        <a href="contact.html" style="color: white; text-decoration: none;">Связь</a>
+    </nav>
 </header>
 
-<div id="smart-panel">
-    <div style="display: flex; gap: 10px; margin-bottom: 10px;">
-        <button id="btn-my-location" class="icon-btn">📍</button>
-        <button id="btn-ar" class="icon-btn">📷</button>
+<div id="smart-panel" class="glass">
+    <div class="toggle-group">
+        <button id="btn-map" class="toggle-btn active">🗺️ Карта</button>
+        <button id="btn-cam" class="toggle-btn">📷 Камера</button>
     </div>
     <div class="search-row">
-        <input type="text" id="target-input" placeholder="Куда идем? (школа, мечеть, акимат)" autocomplete="off">
+        <select id="lang-select">
+            <option value="ru-RU">RU</option>
+            <option value="kk-KZ">KZ</option>
+            <option value="en-US">EN</option>
+        </select>
+        <input type="text" id="target-input" placeholder="Адрес / Сұрау / Query">
         <button id="mic-btn" class="icon-btn">🎤</button>
         <button id="go-btn" class="icon-btn">🚀</button>
     </div>
+    <button id="audio-help-btn" class="toggle-btn">🔊 Звук: ВЫКЛ</button>
 </div>
 
-<div id="map"></div>
+<div id="status-bar" class="glass">Готов к работе</div>
+<div id="map-container"><div id="map" style="width: 100%; height: 100%;"></div></div>
 
-<div id="arScene" class="ar-scene">
-    <button class="close-ar" id="closeArBtn">✖</button>
-    <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;">
-        <a-marker preset="hiro">
-            <a-entity gltf-model="url(doomr.glb)" scale="0.05 0.05 0.05"></a-entity>
-        </a-marker>
-        <a-entity camera></a-entity>
-    </a-scene>
-</div>
-
-<button id="voiceBtn">🎙️</button>
-<div id="voiceText">AIDUX готов</div>
-
-<script src="script.js"></script>
-<script src="voice.js"></script>
+<a-scene id="ar-scene" embedded vr-mode-ui="enabled: false" arjs="sourceType: webcam; debugUIEnabled: false;" background="color: #050505" style="display: none;">
+    <a-camera gps-camera rotation-reader></a-camera>
+</a-scene>
 
 <script>
-    let map, directionsService, directionsRenderer, userMarker, userLocation = null;
-    let currentRoute = null;
-    let lastTarget = "";
-    let isRecording = false;
-    let recognition = null;
-    let searching = false;
-    let autocomplete;
-
-    const targetInput = document.getElementById('target-input');
-    const micBtn = document.getElementById('mic-btn');
-    const goBtn = document.getElementById('go-btn');
-    const btnMyLocation = document.getElementById('btn-my-location');
-    const btnAr = document.getElementById('btn-ar');
-    const arScene = document.getElementById('arScene');
-    const closeArBtn = document.getElementById('closeArBtn');
-
-    // Локальные места (Костанай)
-    const locations = [
-        { lat: 53.747230, lng: 62.063310, name: "Акимат", aliases: ["акимат", "akimat", "әкімат"] },
-        { lat: 53.746552, lng: 62.061851, name: "ДЮСШ", aliases: ["дюсш", "dyussh"] },
-        { lat: 53.746725, lng: 62.062435, name: "Дом культуры", aliases: ["дом культуры", "house of culture"] },
-        { lat: 53.749788, lng: 62.053697, name: "Мечеть", aliases: ["мечеть", "mosque", "мешіт"] },
-        { lat: 53.748111, lng: 62.053639, name: "Школа №1", aliases: ["школа №1", "школа 1", "school 1"] },
-        { lat: 53.749254, lng: 62.070684, name: "Школа №2", aliases: ["школа №2", "школа 2", "school 2"] }
+    const locationsDB = [
+        { lat: 53.747230, lng: 62.063310, aliases: ["акимат", "akimat", "әкімдік"] },
+        { lat: 53.746552, lng: 62.061850, aliases: ["дюсш", "спорт", "sport", "css"] },
+        { lat: 53.746725, lng: 62.062435, aliases: ["дом культуры", "дк", "мәдениет үйі", "house of culture"] },
+        { lat: 53.746725, lng: 62.062435, aliases: ["мечеть", "mosque", "мешіт"] },
+        { lat: 53.748110, lng: 62.053638, aliases: ["школа 1", "школа №1", "мектеп 1", "school 1", "мектеп №1", "school №1"] },
+        { lat: 53.749254, lng: 62.070684, aliases: ["школа 2", "школа №2", "мектеп 2", "school 2", "мектеп №2", "school №2"] }
     ];
 
-    // Инициализация карты
-    function initMap() {
-        const center = { lat: 53.747, lng: 62.063 };
-        map = new google.maps.Map(document.getElementById('map'), {
-            center: center,
-            zoom: 14,
-            styles: [{ featureType: "poi", elementType: "labels", stylers: [{ visibility: "off" }] }] // опционально
-        });
-        directionsService = new google.maps.DirectionsService();
-        directionsRenderer = new google.maps.DirectionsRenderer({ map: map, suppressMarkers: false });
-        directionsRenderer.setMap(map);
-
-        // Добавляем маркеры локальных мест
-        locations.forEach(loc => {
-            new google.maps.Marker({
-                position: { lat: loc.lat, lng: loc.lng },
-                map: map,
-                title: loc.name,
-                icon: { url: "http://maps.google.com/mapfiles/ms/icons/green-dot.png" }
-            });
-        });
-
-        // Геолокация пользователя
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(pos => {
-                userLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-                if (userMarker) userMarker.setMap(null);
-                userMarker = new google.maps.Marker({
-                    position: userLocation,
-                    map: map,
-                    title: "Вы здесь",
-                    icon: { url: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png" }
-                });
-                map.setCenter(userLocation);
-            }, err => console.warn("Геолокация недоступна"));
-        }
-
-        // Автокомплит (Google Places)
-        autocomplete = new google.maps.places.Autocomplete(targetInput);
-        autocomplete.bindTo('bounds', map);
-    }
-
-    // Построение маршрута через Google Directions
-    async function displayRoute(destinationText) {
-        if (!userLocation) {
-            if (window.AIDUX?.speak) window.AIDUX.speak("Не удалось определить ваше местоположение");
-            return false;
-        }
-        goBtn.classList.add('searching');
-        searching = true;
-        try {
-            // Сначала ищем среди локальных мест
-            let destination = null;
-            const lowerQuery = destinationText.toLowerCase();
-            for (let loc of locations) {
-                if (loc.aliases.some(alias => alias.toLowerCase() === lowerQuery || alias.toLowerCase().includes(lowerQuery))) {
-                    destination = { lat: loc.lat, lng: loc.lng, name: loc.name };
-                    break;
-                }
-            }
-            // Если не нашли локально, используем Places API
-            if (!destination) {
-                const geocoder = new google.maps.Geocoder();
-                const result = await new Promise((resolve) => {
-                    geocoder.geocode({ address: destinationText + ", Костанай" }, (results, status) => {
-                        if (status === "OK" && results[0]) resolve(results[0].geometry.location);
-                        else resolve(null);
-                    });
-                });
-                if (!result) throw new Error("Место не найдено");
-                destination = { lat: result.lat(), lng: result.lng(), name: destinationText };
-            }
-
-            const request = {
-                origin: userLocation,
-                destination: destination,
-                travelMode: google.maps.TravelMode.DRIVING
-            };
-            directionsService.route(request, (result, status) => {
-                if (status === "OK") {
-                    directionsRenderer.setDirections(result);
-                    map.fitBounds(result.routes[0].bounds);
-                    if (window.AIDUX?.speak) window.AIDUX.speak(`Маршрут до ${destination.name} построен`);
-                } else {
-                    throw new Error("Маршрут не найден");
-                }
-            });
-            return true;
-        } catch (err) {
-            if (window.AIDUX?.speak) window.AIDUX.speak(`Ошибка: ${err.message}`);
-            return false;
-        } finally {
-            goBtn.classList.remove('searching');
-            searching = false;
-        }
-    }
-
-    // Микрофон для поля поиска
-    if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
-        const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-        recognition = new SR();
-        recognition.lang = 'ru-RU';
-        recognition.interimResults = false;
-        recognition.onresult = (e) => {
-            targetInput.value = e.results[0][0].transcript;
-            stopMic();
-        };
-        recognition.onerror = () => stopMic();
-        function startMic() {
-            if (isRecording) return;
-            recognition.start();
-            micBtn.classList.add('recording');
-            isRecording = true;
-        }
-        function stopMic() {
-            if (!isRecording) return;
-            recognition.stop();
-            micBtn.classList.remove('recording');
-            isRecording = false;
-        }
-        micBtn.onclick = () => isRecording ? stopMic() : startMic();
-    } else {
-        micBtn.disabled = true;
-    }
-
-    // Кнопки
-    btnMyLocation.onclick = () => {
-        if (userLocation) map.setCenter(userLocation);
-        else if (window.AIDUX?.speak) window.AIDUX.speak("Местоположение не определено");
+    const dict = {
+        "привет": "Привет! Жду команд.",
+        "сәлем": "Сәлем! Жұмысқа дайынмын.",
+        "hello": "Hello! Ready to work."
     };
-    btnAr.onclick = () => { arScene.style.display = 'block'; if(window.AIDUX?.speak) window.AIDUX.speak("Открываю AR"); };
-    closeArBtn.onclick = () => { arScene.style.display = 'none'; };
-    goBtn.onclick = async () => {
-        if (searching) return;
-        const query = targetInput.value.trim();
-        if (!query) {
-            if(window.AIDUX?.speak) window.AIDUX.speak("Введите или скажите место");
-            return;
+
+    const map = new maplibregl.Map({
+        container: 'map',
+        style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+        center: [62.062, 53.747],
+        zoom: 15,
+        pitch: 60,
+        bearing: 0,
+        antialias: true
+    });
+
+    const modelOrigin = [62.0609, 53.7471];
+    const mercator = maplibregl.MercatorCoordinate.fromLngLat(modelOrigin, 0);
+
+    const customLayer = {
+        id: '3d-model', type: 'custom', renderingMode: '3d',
+        onAdd: function (map, gl) {
+            this.camera = new THREE.Camera();
+            this.scene = new THREE.Scene();
+            this.scene.add(new THREE.AmbientLight(0xffffff, 1));
+            new THREE.GLTFLoader().load('doomr.glb', (gltf) => { this.scene.add(gltf.scene); });
+            this.renderer = new THREE.WebGLRenderer({ canvas: map.getCanvas(), context: gl, antialias: true });
+            this.renderer.autoClear = false;
+        },
+        render: function (gl, matrix) {
+            const m = new THREE.Matrix4().fromArray(matrix);
+            const l = new THREE.Matrix4()
+                .makeTranslation(mercator.x, mercator.y, mercator.z)
+                .scale(new THREE.Vector3(mercator.meterInMercatorCoordinateUnits(), -mercator.meterInMercatorCoordinateUnits(), mercator.meterInMercatorCoordinateUnits()))
+                .multiply(new THREE.Matrix4().makeRotationX(Math.PI / 2));
+            this.camera.projectionMatrix = m.multiply(l);
+            this.renderer.resetState();
+            this.renderer.render(this.scene, this.camera);
+            map.triggerRepaint();
         }
-        if (query === lastTarget) {
-            if(window.AIDUX?.speak) window.AIDUX.speak(`Маршрут до ${query} уже построен`);
-            return;
-        }
-        const success = await displayRoute(query);
-        if (success) lastTarget = query;
     };
-    targetInput.addEventListener('keypress', e => { if (e.key === 'Enter') goBtn.click(); });
 
-    // Глобальный initMap для callback Google API
-    window.initMap = initMap;
+    map.on('style.load', () => { 
+        map.addLayer(customLayer); 
+        map.addSource('route', { type: 'geojson', data: { type: 'Feature', coordinates: [] } });
+        map.addLayer({ id: 'route-line', type: 'line', source: 'route', paint: { 'line-color': '#00ff00', 'line-width': 6 } });
+    });
 
-    // Кастомный обработчик для голосового помощника
-    setTimeout(() => {
-        if (window.initVoice) {
-            window.initVoice((cmd, raw) => {
-                const l = cmd.toLowerCase();
-                if (l.includes('маршрут') || l.includes('построй') || l.includes('поехали')) {
-                    let place = raw.replace(/построй|маршрут|до|поехали/gi, '').trim();
-                    if (!place) place = targetInput.value.trim();
-                    if (place) {
-                        targetInput.value = place;
-                        displayRoute(place);
-                    } else window.AIDUX.speak("Скажите, куда построить маршрут");
-                    return true;
-                }
-                if (l.includes('камера') || l.includes('ar')) { btnAr.click(); return true; }
-                if (l.includes('где я')) {
-                    if (userLocation) window.AIDUX.speak(`Вы в точке ${userLocation.lat.toFixed(4)}, ${userLocation.lng.toFixed(4)}`);
-                    else window.AIDUX.speak("Местоположение не определено");
-                    return true;
-                }
-                if (l.includes('что такое aidux')) { window.AIDUX.speak("AIDUX — умная навигация с AR для Костаная."); return true; }
-                if (l.includes('контакты')) { window.AIDUX.speak("Перехожу на страницу контактов"); setTimeout(() => location.href = "contact.html", 1000); return true; }
-                if (l.includes('привет')) { window.AIDUX.speak("Здравствуйте! Я AIDUX. Скажите 'построй маршрут до мечети'."); return true; }
-                return false;
-            });
+    let audioOn = false;
+    const statBar = document.getElementById('status-bar');
+
+    function speak(text, lang) {
+        statBar.innerText = text;
+        if (!audioOn) return;
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang = lang;
+        window.speechSynthesis.speak(u);
+    }
+
+    async function route(query) {
+        const lang = document.getElementById('lang-select').value;
+        
+        for (let key in dict) {
+            if (query.includes(key)) return speak(dict[key], lang);
         }
-    }, 300);
+
+        const target = locationsDB.find(l => l.aliases.some(a => query.includes(a)));
+        if (!target) return speak("Не найдено / Табылмады", lang);
+
+        navigator.geolocation.getCurrentPosition(async (p) => {
+            const url = `https://router.project-osrm.org/route/v1/foot/${p.coords.longitude},${p.coords.latitude};${target.lng},${target.lat}?overview=full&geometries=geojson`;
+            const res = await fetch(url);
+            const data = await res.json();
+            if (data.routes[0]) {
+                map.getSource('route').setData(data.routes[0].geometry);
+                speak("Маршрут построен / Маршрут құрылды", lang);
+            }
+        });
+    }
+
+    document.getElementById('go-btn').onclick = () => route(document.getElementById('target-input').value.toLowerCase());
+    
+    document.getElementById('audio-help-btn').onclick = function() { 
+        audioOn = !audioOn; 
+        this.innerText = audioOn ? "🔊 Звук: ВКЛ" : "🔊 Звук: ВЫКЛ";
+        this.classList.toggle('active');
+    };
+
+    const rec = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+    document.getElementById('mic-btn').onclick = () => {
+        rec.lang = document.getElementById('lang-select').value;
+        rec.start();
+        statBar.innerText = "Слушаю / Тыңдап тұрмын...";
+    };
+    rec.onresult = (e) => {
+        const t = e.results[0][0].transcript.toLowerCase();
+        document.getElementById('target-input').value = t;
+        route(t);
+    };
+
+    document.getElementById('btn-map').onclick = function() { 
+        this.classList.add('active'); document.getElementById('btn-cam').classList.remove('active');
+        document.getElementById('map-container').style.zIndex = 100; 
+        document.getElementById('ar-scene').style.display='none'; 
+    };
+    document.getElementById('btn-cam').onclick = function() { 
+        this.classList.add('active'); document.getElementById('btn-map').classList.remove('active');
+        document.getElementById('map-container').style.zIndex = 10; 
+        document.getElementById('ar-scene').style.display='block'; 
+    };
 </script>
 </body>
 </html>

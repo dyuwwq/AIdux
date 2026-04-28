@@ -1,9 +1,75 @@
-const voiceBtn=document.getElementById("voiceBtn"),voiceText=document.getElementById("voiceText");
-let recognition,customHandler=null;
-const baseResponses={"привет":"Привет, я AIDUX голосовой помощник. Чем могу помочь?","как дела":"Всё отлично, готов к работе.","что такое айдукс":"AIDUX — проект умной навигации с дополненной реальностью.","зачем нужна карта":"Карта помогает ориентироваться и строить маршруты.","о чем этот сайт":"Сайт AIDUX демонстрирует 3D-карты, маршруты и AR-технологии.","открой карту":()=>window.location.href="map.html","открой о проекте":()=>window.location.href="about.html","открой связь":()=>window.location.href="contact.html","перейди на главную":()=>window.location.href="index.html","спасибо":"Пожалуйста! Обращайтесь.","пока":"До свидания!","расскажи о себе":"Я голосовой помощник AIDUX, созданный для управления навигацией и ответов на вопросы."};
-function speak(text){if(voiceText)voiceText.textContent=text;const utterance=new SpeechSynthesisUtterance(text);utterance.lang="ru-RU";utterance.rate=0.9;window.speechSynthesis.cancel();window.speechSynthesis.speak(utterance);}
-function processCommand(transcript){const lower=transcript.toLowerCase();if(customHandler&&customHandler(lower,transcript))return true;for(let key in baseResponses){if(lower.includes(key)){const resp=baseResponses[key];if(typeof resp==="function"){resp();speak("Выполняю команду.");}else speak(resp);return true;}}speak("Извините, я не понял команду. Попробуйте сказать 'открой карту' или 'привет'.");return false;}
-function startListening(){if(!recognition){if(voiceText)voiceText.textContent="Голосовое управление не поддерживается";return;}try{recognition.start();if(voiceText)voiceText.textContent="Слушаю...";}catch(e){if(voiceText)voiceText.textContent="Ошибка микрофона";}}
-function initVoice(additionalHandler){if(additionalHandler)customHandler=additionalHandler;if(!("webkitSpeechRecognition"in window||"SpeechRecognition"in window)){if(voiceText)voiceText.textContent="Голосовое управление не поддерживается";if(voiceBtn)voiceBtn.disabled=true;return;}const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;recognition=new SpeechRecognition();recognition.lang="ru-RU";recognition.interimResults=false;recognition.continuous=false;recognition.onstart=()=>{if(voiceText)voiceText.textContent="Слушаю...";};recognition.onresult=(event)=>{const transcript=event.results[0][0].transcript;if(voiceText)voiceText.textContent=`Вы сказали: ${transcript}`;processCommand(transcript);};recognition.onerror=(event)=>{if(voiceText)voiceText.textContent="Ошибка: "+event.error;setTimeout(()=>{if(voiceText)voiceText.textContent="AIDUX готов";},2000);};recognition.onend=()=>{if(voiceText)voiceText.textContent="AIDUX готов";};if(voiceBtn)voiceBtn.onclick=startListening;}
-document.addEventListener("DOMContentLoaded",()=>{initVoice();});
-window.AIDUX={speak};
+const voiceBtn = document.getElementById("voiceBtn");
+const voiceText = document.getElementById("voiceText");
+
+// Примеры вопросов и ответов
+const responses = {
+    "привет": "Привет, по вашему велению, великий создатель! Как ваши дела?",
+    "как дела": "Все отлично, по вашему хотению! Готов к работе.",
+    "зачем нужна карта": "Эта карта создана для научной работы и навигации по городу и сёлам.",
+    "о чем этот сайт": "Сайт AIDUX создан для демонстрации 3D-карт и умных маршрутов и также AR-визуализации.",
+    "зачем создана карта": "Карта помогает понять города и сёла людям с ограниченными возможностями более точнее и внедрять IT-технологии в жизнь.",
+    "открой мне карту": () => window.location.href = "map.html",
+    "открой мне страницу о проекте": () => window.location.href = "about.html",
+    "открой мне страницу камера": () => window.location.href = "camera.html",
+    "открой мне страницу связь": () => window.location.href = "contact.html",
+    "перекинь меня на страницу карта": () => window.location.href = "map.html",
+    "перекинь меня на страницу о проекте": () => window.location.href = "about.html",
+    "перекинь меня на страницу камера": () => window.location.href = "camera.html",
+    "перекинь меня на страницу связь": () => window.location.href = "contact.html",
+    "спасибо": "По вашему велению, великий создатель, рад был помочь!",
+};
+
+let recognition;
+
+if ("webkitSpeechRecognition" in window || "SpeechRecognition" in window) {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    recognition = new SpeechRecognition();
+    recognition.lang = 'ru-RU';
+    recognition.interimResults = false;
+    recognition.continuous = false;
+
+    recognition.onstart = () => {
+        voiceText.textContent = "Слушаю…";
+    };
+
+    recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript.toLowerCase();
+        console.log("Распознано:", transcript);
+
+        let answered = false;
+        for (let key in responses) {
+            if (transcript.includes(key)) {
+                const resp = responses[key];
+                if (typeof resp === "function") {
+                    resp();
+                    speak("По вашему велению, великий создатель!");
+                } else {
+                    speak(resp);
+                }
+                answered = true;
+                break;
+            }
+        }
+
+        if (!answered) {
+            speak("Извините, пока не знаю ответа. Попробуйте другой вопрос.");
+        }
+    };
+
+    recognition.onerror = (event) => {
+        voiceText.textContent = "Ошибка распознавания: " + event.error;
+    };
+}
+
+voiceBtn.addEventListener("click", () => {
+    if (recognition) recognition.start();
+});
+
+function speak(text) {
+    voiceText.textContent = text;
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = "ru-RU";
+    utter.rate = 1.5;   // немного быстрее
+    utter.pitch = 0.0001;  // более мужской тембр
+    speechSynthesis.speak(utter);
+}
