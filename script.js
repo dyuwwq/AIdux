@@ -1,1 +1,0 @@
-document.addEventListener("DOMContentLoaded",()=>{const burger=document.querySelector(".burger"),nav=document.querySelector(".nav-links");if(burger&&nav)burger.addEventListener("click",()=>nav.classList.toggle("active"));document.querySelectorAll(".hidden").forEach((el,i)=>setTimeout(()=>el.classList.add("visible"),i*200));});
