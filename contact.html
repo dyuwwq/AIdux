@@ -6,84 +6,182 @@
     <title>Контакты | AIDUX</title>
     <link rel="stylesheet" href="style.css">
     <style>
+        /* Базовые стили для демонстрации (если style.css пуст) */
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', sans-serif;
+            background: #0f172a; /* Темный футуристичный фон */
+            color: white;
+        }
+
+        .glass {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+        }
+
+        .container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 80vh;
+            padding: 20px;
+        }
+
+        .contact-card {
+            width: 100%;
+            max-width: 500px;
+            padding: 40px;
+            box-sizing: border-box;
+        }
+
         input, textarea {
             width: 100%;
             padding: 15px;
-            margin-bottom: 15px;
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.2);
-            border-radius: 10px;
+            margin-bottom: 20px;
+            background: rgba(255, 255, 255, 0.07);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
             color: white;
+            font-size: 16px;
             outline: none;
-            box-sizing: border-box; /* Чтобы padding не раздувал ширину */
+            transition: 0.3s;
+            box-sizing: border-box;
         }
-        input::placeholder, textarea::placeholder {
-            color: rgba(255,255,255,0.5);
-        }
+
         input:focus, textarea:focus {
-            border-color: #2e7d32;
+            border-color: #4ade80; /* Зеленый акцент */
+            background: rgba(255, 255, 255, 0.1);
         }
-        /* Убедитесь, что .hidden обрабатывается в script.js или удалите его */
+
+        .btn {
+            width: 100%;
+            padding: 15px;
+            background: #2e7d32;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .btn:hover {
+            background: #3d9e43;
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        #msg {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+            color: #4ade80;
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Скрываем подписи для красоты, но оставляем для роботов */
+        .visually-hidden {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0,0,0,0);
+            border: 0;
+        }
     </style>
 </head>
 <body>
 
-<header class="nav glass">
-    <a href="index.html" class="logo">AIDUX</a>
+<header class="nav glass" style="margin: 20px; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center;">
+    <a href="index.html" class="logo" style="text-decoration: none; color: white; font-weight: bold; font-size: 24px;">AIDUX</a>
     <nav class="nav-links">
-        <a href="index.html">Главная</a>
-        <a href="about.html">О проекте</a>
-        <a href="map.html">Карта</a>
-        <a href="contact.html" class="active">Связь</a>
+        <a href="index.html" style="color: white; margin-left: 20px; text-decoration: none; opacity: 0.8;">Главная</a>
+        <a href="about.html" style="color: white; margin-left: 20px; text-decoration: none; opacity: 0.8;">О проекте</a>
+        <a href="contact.html" class="active" style="color: #4ade80; margin-left: 20px; text-decoration: none; font-weight: bold;">Связь</a>
     </nav>
 </header>
 
 <main class="container">
-    <section class="glass" style="max-width: 600px; margin: 40px auto; padding: 40px;">
-        <h2 style="text-align: center; margin-bottom: 25px;">Связаться с нами</h2>
+    <section class="glass contact-card">
+        <h2 style="text-align: center; margin-bottom: 30px; font-weight: 300;">Напишите нам</h2>
 
-        <form id="form">
-            <input type="text" name="name" placeholder="Ваше имя" required>
-            <input type="email" name="email" placeholder="Ваш Email" required>
-            <textarea name="message" placeholder="Ваше сообщение..." rows="5" required></textarea>
-            <button type="submit" class="btn" style="width: 100%; cursor: pointer;">Отправить</button>
+        <form id="contactForm">
+            <label for="name" class="visually-hidden">Ваше имя</label>
+            <input type="text" id="name" name="user_name" placeholder="Ваше имя" required autocomplete="name">
+
+            <label for="email" class="visually-hidden">Ваш Email</label>
+            <input type="email" id="email" name="user_email" placeholder="Ваш Email" required autocomplete="email">
+
+            <label for="message" class="visually-hidden">Сообщение</label>
+            <textarea id="message" name="user_message" placeholder="Ваше сообщение..." rows="5" required></textarea>
+
+            <button type="submit" id="submitBtn" class="btn">Отправить сообщение</button>
         </form>
 
-        <div id="msg" style="display:none; text-align: center; margin-top: 20px; color: #a5ffb1;">
-            Сообщение отправлено ✅
+        <div id="msg" role="alert">
+            Сообщение успешно отправлено! ✅
         </div>
     </section>
 </main>
 
-<footer style="text-align: center; padding: 50px; opacity: 0.5;">
-    © 2026 AIDUX Digital Project | Костанай
+<footer style="text-align: center; padding: 40px; opacity: 0.4; font-size: 14px;">
+    © 2026 AIDUX Digital Project | Kostanay
 </footer>
-
-<button id="voiceBtn">🎤</button>
-<div id="voiceText">AIDUX готов</div>
 
 <script src="script.js"></script>
 <script src="voice.js"></script>
 
 <script>
-    const form = document.getElementById("form");
-    const msg = document.getElementById("msg");
+    // Используем блок {}, чтобы переменные не конфликтовали с другими файлами
+    {
+        const contactForm = document.getElementById('contactForm');
+        const statusMsg = document.getElementById('msg');
+        const submitBtn = document.getElementById('submitBtn');
 
-    if (form) {
-        form.addEventListener("submit", e => {
-            e.preventDefault();
-            
-            // Здесь обычно идет fetch-запрос к серверу
-            
-            msg.style.display = "block";
-            form.reset();
+        if (contactForm) {
+            contactForm.addEventListener('submit', async (e) => {
+                e.preventDefault(); // Останавливаем перезагрузку страницы
 
-            // Скрываем уведомление через 3 секунды
-            setTimeout(() => {
-                msg.style.display = "none";
-            }, 3000);
-        });
+                // 1. Визуальный отклик (состояние загрузки)
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Отправка...';
+
+                // 2. Сбор данных (для будущего бэкенда)
+                const formData = new FormData(contactForm);
+                console.log('Данные к отправке:', Object.fromEntries(formData));
+
+                // 3. Имитация задержки сети (1.5 секунды)
+                setTimeout(() => {
+                    // Показываем успех
+                    statusMsg.style.display = 'block';
+                    contactForm.reset(); // Очищаем поля
+                    
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Отправить сообщение';
+
+                    // Скрываем успех через 5 секунд
+                    setTimeout(() => {
+                        statusMsg.style.display = 'none';
+                    }, 5000);
+                }, 1500);
+            });
+        }
     }
 </script>
+
 </body>
 </html>
