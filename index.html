@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AIDUX | Digital Future</title>
+<link rel="stylesheet" href="style.css">
+<style>
+/* Голосовой помощник */
+#voiceBtn {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: #2e7d32;
+    color: white;
+    border: none;
+    padding: 15px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 1.5rem;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    z-index: 1000;
+}
+
+#voiceText {
+    position: fixed;
+    bottom: 80px;
+    right: 20px;
+    background: rgba(0,0,0,0.6);
+    color: #a5ffb1;
+    padding: 10px 15px;
+    border-radius: 10px;
+    font-family: 'Segoe UI', sans-serif;
+    font-size: 0.9rem;
+    max-width: 250px;
+    text-align: left;
+    z-index: 1000;
+}
+</style>
+</head>
+<body>
+
+<header class="nav glass">
+    <a href="index.html" class="logo">AIDUX</a>
+    <nav class="nav-links">
+        <a href="index.html">Главная</a>
+        <a href="about.html">О проекте</a>
+        <a href="map.html">Карта</a>
+        <a href="contact.html">Связь</a>
+    </nav>
+</header>
+
+<main class="container">
+    <section class="hero hidden" style="text-align: center; padding: 100px 0;">
+        <h1 style="font-size: 3.5rem; margin-bottom: 20px;">AIDUX</h1>
+        <p style="font-size: 1.2rem; max-width: 600px; margin: 0 auto 30px; opacity: 0.9;">
+            Будущее навигации. 3D-технологии и умные маршруты для Костаная и его районов.
+        </p>
+        <div class="hero-buttons">
+            <a href="map.html" class="btn">Открыть карту</a>
+            <a href="about.html" class="btn" style="background: rgba(255,255,255,0.1); margin-left: 10px;">Узнать больше</a>
+        </div>
+    </section>
+</main>
+
+<footer style="text-align: center; padding: 50px; opacity: 0.5;">
+    © 2026 AIDUX Digital Project | Костанай
+</footer>
+
+<!-- Голосовой помощник -->
+<button id="voiceBtn">🎙️</button>
+<div id="voiceText">AIDUX готов</div>
+
+<script src="voice.js"></script>
+<script src="script.js"></script>
+</body>
+</html>
